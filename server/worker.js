@@ -73,15 +73,18 @@ const worker = new Worker(
       });
 
       // Ensure collection exists with both Dense + Sparse vector indexes
-      const collections = await qdrantClient.getCollections(); 
+      const collections = await qdrantClient.getCollections();
       const exists = collections.collections.some((c) => c.name === "pdf-docs");
 
       if (!exists) {
         console.log("Creating dual-vector collection 'pdf-docs'...");
+        // Detect exact vector size from the generated embeddings (3072)
+        const vectorDimension = denseEmbeddings[0]?.length || 3072;
+        console.log("Vector dimension detected:", vectorDimension);
         await qdrantClient.createCollection("pdf-docs", {
           vectors: {
             dense: {
-              size: 768,
+              size: vectorDimension,
               distance: "Cosine",
             },
           },

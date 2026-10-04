@@ -5,8 +5,9 @@ import multer from "multer";
 import crypto from "crypto";
 import { Queue } from "bullmq";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { QdrantVectorStore } from "@langchain/qdrant";
 import { GoogleGenAI } from "@google/genai";
+import { QdrantClient } from "@qdrant/js-client-rest";
+import { generateSparseVector } from "./lib/bm25.js";
 
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 
@@ -47,6 +48,7 @@ app.get("/", (req, res) => {
 
 app.get("/chat", async (req, res) => {
   const userQuery = req.query.message;
+  const docId = req.query.docId;
 
   if (!userQuery) {
     return res.status(400).json({ error: "No query provided" });
@@ -57,30 +59,85 @@ app.get("/chat", async (req, res) => {
     apiKey: process.env.GOOGLE_API_KEY,
   });
 
-  const vectorStore = new QdrantVectorStore(
-    embeddings,
-    {
-      url: "http://localhost:6333",
-      collectionName: "pdf-docs",
-    },
-  );
-
-  await vectorStore.ensureCollection();
-  const ret = vectorStore.asRetriever({
-    k: 5,
+  const qdrantClient = new QdrantClient({
+    url: "http://localhost:6333",
   });
 
-  const result = await ret.invoke(userQuery);
+  // Check Collection Status
+  const collections = await qdrantClient.getCollections();
+  const exists = collections.collections.some((c) => c.name === "pdf-docs");
+
+  if (!exists) {
+    return res.json({ answer: "No documents uploaded yet.", source: [] });
+  }
+
+  // 1. Generate both Dense and Sparse representations for the query
+  const [denseVector, sparseVector] = await Promise.all([
+    embeddings.embedQuery(userQuery),
+    Promise.resolve(generateSparseVector(userQuery)), // using Promise.resolve() allows them to be handled togethers
+  ]);
+
+  // 2. Optional: Filter by specific document if docId is passed
+  const filter = docId ? {
+    must: [{
+      key: "metadata.docId",
+      match: { value: docId }
+    }]
+  } : undefined;
+
+  // 3. Hybrid Search with RRF (Reciprocal Rank Fusion):
+  const searchResults = await qdrantClient.query("pdf-docs", {
+    prefetch: [
+      {
+        query: denseVector,
+        using: "dense",
+        limit: 15,
+        filter,
+      },
+      {
+        query: {
+          indices: sparseVector.indices,
+          values: sparseVector.values
+        },
+        using: "sparse",
+        limit: 15,
+        filter,
+      }
+    ],
+    query: {
+      fusion: 'rrf' // Native Reciprocal Rank Fusion
+    },
+    limit: 5,
+    with_payload: true
+  })
+
+  // 4. Format the retrieved chunks for the prompt and frontend
+  const retreivedDocs = searchResults.points.map((p) => ({
+    pageContent: p.payload.pageContent || '',
+    metadata: p.payload.metadata || {},
+    score: p.score
+  }))
+
+  // 5. Build Grounded Prompt with Page Citations
+  const contextText = retreivedDocs
+    .map(
+      (doc, i) =>
+        `Source ${i + 1} | Page ${doc.metadata?.pageNumber ||
+        "N/A"}\n${doc.pageContent}`
+    )
+    .join("\n");
 
   const SYSTEM_PROMPT = `
-  You are a PDF Q&A assistant. Answer the user's questions using only the information from the provided PDF context.
-  Do not make up information.
-  Context: 
-  ${JSON.stringify(result)}
+  You are Docbridge, a high-precision document intelligence assistant.
+  Answer the user's question using ONLY the provided PDF context below.
+  Do not make up facts. Always mention the source/page number if available.
+  
+  Context:
+  ${contextText}
+  If the answer is not found in the PDF, say: "I couldn't find the answer in the document."`;
 
-  If the answer is not found in the PDF,
-  say: "I couldn't find the answer in the PDF."`;
 
+  // 6. Generate Answer with gemini
   const chatResult = await client.models.generateContent({
     model: "gemini-2.5-flash",
     config: {
@@ -91,7 +148,7 @@ app.get("/chat", async (req, res) => {
 
   return res.json({
     answer: chatResult.text,
-    source: result,
+    source: retreivedDocs,
   });
 });
 
