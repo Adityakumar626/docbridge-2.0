@@ -27,6 +27,18 @@ const worker = new Worker(
       const texts = await textSplitter.splitDocuments(docs);
       console.log(`Generated ${texts.length} chunks. Connecting to Qdrant...`);
 
+      // chunks with metadata for better citations 
+      const enrichedChunks = texts.map((chunk, idx) => ({
+        ...chunk,
+        metadata: {
+          ...chunk.metadata,
+          docId: data.docId || data.filename,
+          filename: data.filename,
+          pageNumber: chunk.metadata?.loc?.pageNumber || 1,
+          chunkIndex: idx,
+        },
+      }))
+
       // 3. Initialize Gemini Embeddings
       const embeddings = new GoogleGenerativeAIEmbeddings({
         model: "gemini-embedding-001",
@@ -34,7 +46,7 @@ const worker = new Worker(
       });
 
       // 4. Save to Qdrant
-      const vectorStore = await QdrantVectorStore.fromExistingCollection(
+      const vectorStore = new QdrantVectorStore(
         embeddings,
         {
           url: "http://localhost:6333",
@@ -42,10 +54,12 @@ const worker = new Worker(
         },
       );
 
-      // as of now storing docs instead of chunks
-      await vectorStore.addDocuments(docs);
+      await vectorStore.ensureCollection();
 
-      console.log("✅ All docs successfully added to Qdrant vector store!");
+      // now adding real chunks with metadata to db 
+      await vectorStore.addDocuments(enrichedChunks);
+      console.log("✅ All chunks with metadata successfully added to Qdrant vector store!");
+
     } catch (error) {
       console.error("❌ Error processing job in worker:", error);
       throw error; // Ensures BullMQ knows the job failed

@@ -46,14 +46,18 @@ app.get("/", (req, res) => {
 });
 
 app.get("/chat", async (req, res) => {
-  const userQuery = "what is canvas?";
+  const userQuery = req.query.message;
+
+  if (!userQuery) {
+    return res.status(400).json({ error: "No query provided" });
+  }
 
   const embeddings = new GoogleGenerativeAIEmbeddings({
     model: "gemini-embedding-001",
     apiKey: process.env.GOOGLE_API_KEY,
   });
 
-  const vectorStore = await QdrantVectorStore.fromExistingCollection(
+  const vectorStore = new QdrantVectorStore(
     embeddings,
     {
       url: "http://localhost:6333",
@@ -61,8 +65,9 @@ app.get("/chat", async (req, res) => {
     },
   );
 
+  await vectorStore.ensureCollection();
   const ret = vectorStore.asRetriever({
-    k: 2,
+    k: 5,
   });
 
   const result = await ret.invoke(userQuery);
@@ -86,21 +91,23 @@ app.get("/chat", async (req, res) => {
 
   return res.json({
     answer: chatResult.text,
-    sources: result,
+    source: result,
   });
 });
 
 app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
+  const docId = crypto.randomUUID();
   // creating job to be done by worker
   await queue.add(
     "file-ready",
     JSON.stringify({
+      docId,
       filename: req.file.originalname,
       source: req.file.destination,
       path: req.file.path,
     }),
   );
-  return res.json({ message: "uploaded" });
+  return res.json({ message: "uploaded", docId, filename: req.file.originalname, });
 });
 
 app.listen(port, () => {
