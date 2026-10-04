@@ -8,6 +8,7 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { GoogleGenAI } from "@google/genai";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { generateSparseVector } from "./lib/bm25.js";
+import { rerankCandidates } from "./lib/reranker.js";
 
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 
@@ -107,7 +108,7 @@ app.get("/chat", async (req, res) => {
     query: {
       fusion: 'rrf' // Native Reciprocal Rank Fusion
     },
-    limit: 5,
+    limit: 12, // Retrieve wide candidate pool for the re-ranker
     with_payload: true
   })
 
@@ -118,8 +119,23 @@ app.get("/chat", async (req, res) => {
     score: p.score
   }))
 
+  // Re-rank candidates down to the top golden snippets
+  const { goldenDocs, hasSufficientContext } = await rerankCandidates(
+    client,
+    userQuery,
+    retreivedDocs,
+    3 // Keep top 3 golden snippets (topK)
+  );
+
+  if (goldenDocs.length === 0 || !hasSufficientContext) {
+    return res.json({
+      answer: "I couldn't find any relevant information in the document to answer your question.",
+      source: []
+    })
+  }
+
   // 5. Build Grounded Prompt with Page Citations
-  const contextText = retreivedDocs
+  const contextText = goldenDocs
     .map(
       (doc, i) =>
         `Source ${i + 1} | Page ${doc.metadata?.pageNumber ||
@@ -127,28 +143,53 @@ app.get("/chat", async (req, res) => {
     )
     .join("\n");
 
-  const SYSTEM_PROMPT = `
-  You are Docbridge, a high-precision document intelligence assistant.
-  Answer the user's question using ONLY the provided PDF context below.
-  Do not make up facts. Always mention the source/page number if available.
-  
-  Context:
-  ${contextText}
-  If the answer is not found in the PDF, say: "I couldn't find the answer in the document."`;
+  const SYSTEM_PROMPT = `You are Docbridge, a high-precision document intelligence assistant.
+Answer the user's question clearly and concisely using ONLY the provided PDF context below.
+Do not make up facts.
+When referencing specific facts from the sources, cite them inline using the format: [Source X | Page Y] (e.g. [Source 1 | Page 4]).
+CRITICAL CITATION RULES:
+1. Embed citations inline immediately after the relevant fact, e.g. [Source 1 | Page 4].
+2. Do NOT append a bibliography, reference list, or trailing "Cited: Page X" block at the bottom of your response. Citations are rendered automatically by the UI.
+
+Context:
+${contextText}
+If the answer is not found in the PDF, say: "I couldn't find the answer in the document."`;
 
 
-  // 6. Generate Answer with gemini
-  const chatResult = await client.models.generateContent({
-    model: "gemini-2.5-flash",
-    config: {
-      systemInstruction: SYSTEM_PROMPT,
-    },
-    contents: userQuery,
-  });
+  // 6. Generate Answer with gemini (with fallback if primary model experiences 503 high demand)
+  let answerText = "";
+  try {
+    const chatResult = await client.models.generateContent({
+      model: "gemini-3.7-flash",
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+      },
+      contents: userQuery,
+    });
+    answerText = chatResult.text;
+  } catch (modelErr) {
+    console.warn("Primary model error (503/failover), trying gemini-2.5-flash:", modelErr.message);
+    try {
+      const fallbackResult = await client.models.generateContent({
+        model: "gemini-2.5-flash",
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+        },
+        contents: userQuery,
+      });
+      answerText = fallbackResult.text;
+    } catch (fallbackErr) {
+      console.error("All models failed:", fallbackErr);
+      return res.status(503).json({
+        answer: "The AI service is currently experiencing high demand. Please try again in a moment.",
+        source: goldenDocs,
+      });
+    }
+  }
 
   return res.json({
-    answer: chatResult.text,
-    source: retreivedDocs,
+    answer: answerText,
+    source: goldenDocs,
   });
 });
 
