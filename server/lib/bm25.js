@@ -16,7 +16,7 @@ const STOPWORDS = new Set([
 ]);
 
 // using (FNV-1A) for tokenizing the strings in the chunks
-function hashToken(token: string): number {
+function hashToken(token) {
     let hash = 2166136261;
     for (let i = 0; i < token.length; i++) {
         hash ^= token.charCodeAt(i);
@@ -34,7 +34,7 @@ function hashToken(token: string): number {
  * @returns {{ indices: number[], values: number[] }}
  */
 
-export function generateSparseVector(text: string, k1 = 1.2) {
+export function generateSparseVector(text, k1 = 1.2) {
     if (!text || typeof text !== "string") {
         return { indices: [], values: [] };
     }

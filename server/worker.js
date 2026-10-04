@@ -4,6 +4,8 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import dotenv from "dotenv";
+import { generateSparseVector } from "./lib/bm25.js"
+import { QdrantClient } from "@qdrant/js-client-rest";
 
 dotenv.config();
 
@@ -45,20 +47,57 @@ const worker = new Worker(
         apiKey: process.env.GOOGLE_API_KEY,
       });
 
-      // 4. Save to Qdrant
-      const vectorStore = new QdrantVectorStore(
-        embeddings,
-        {
-          url: "http://localhost:6333",
-          collectionName: "pdf-docs",
+      // Compute Dense Embeddings in Batches:
+      const textToEmbed = enrichedChunks.map((c) => c.pageContent); // extract only page content from the chunks
+      const denseEmbeddings = await embeddings.embedDocuments(textToEmbed); // covert into dense vectors
+
+      // Compute Sparse Embeddings with BM25:
+      const sparseEmbeddings = textToEmbed.map((text) => generateSparseVector(text));
+
+      // Construct the Qdrant Points Array: 
+      const points = enrichedChunks.map((chunk, i) => ({
+        id: crypto.randomUUID(),
+        vector: {
+          dense: denseEmbeddings[i],
+          sparse: sparseEmbeddings[i],
         },
-      );
+        payload: {
+          pageContent: chunk.pageContent,
+          metadata: chunk.metadata
+        }
+      }));
 
-      await vectorStore.ensureCollection();
+      // 4. Save to Qdrant
+      const qdrantClient = new QdrantClient({
+        url: "http://localhost:6333",
+      });
 
-      // now adding real chunks with metadata to db 
-      await vectorStore.addDocuments(enrichedChunks);
-      console.log("✅ All chunks with metadata successfully added to Qdrant vector store!");
+      // Ensure collection exists with both Dense + Sparse vector indexes
+      const collections = await qdrantClient.getCollections(); 
+      const exists = collections.collections.some((c) => c.name === "pdf-docs");
+
+      if (!exists) {
+        console.log("Creating dual-vector collection 'pdf-docs'...");
+        await qdrantClient.createCollection("pdf-docs", {
+          vectors: {
+            dense: {
+              size: 768,
+              distance: "Cosine",
+            },
+          },
+          sparse_vectors: {
+            sparse: {},
+          },
+        });
+      }
+
+      // Upsert points in a single network roundtrip
+      await qdrantClient.upsert("pdf-docs", {
+        wait: true,
+        points,
+      });
+
+      console.log(`✅ Ingested ${points.length} hybrid chunks successfully!`);
 
     } catch (error) {
       console.error("❌ Error processing job in worker:", error);
