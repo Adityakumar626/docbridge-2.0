@@ -73,7 +73,7 @@ Every response is grounded with **interactive page-level citation badges** that 
 | **Frontend** | `Next.js 16` • `React 19` • `TypeScript` • `Tailwind CSS 4` • `Clerk Auth` • `Lucide Icons` • `Framer Motion` |
 | **Backend API** | `Express.js` • `Node.js 20` • `Multer` • `CORS` • `LangChain` |
 | **AI & Embeddings** | `Google Gemini 3.7 Flash` • `gemini-embedding-001` (3072d) • `BM25 Sparse Algorithm` |
-| **Data & Queues** | `Qdrant v1.13` (Dual Vector Engine) • `Valkey / Redis 8` • `BullMQ v6` |
+| **Data & Queues** | `Qdrant v1.19` (Dual Vector Engine) • `Valkey / Redis 8` • `BullMQ v6` |
 | **DevOps & Infra** | `Docker Compose` • `Multi-stage Dockerfiles` • `Bridge Networks` • `Healthchecks` |
 
 ---
