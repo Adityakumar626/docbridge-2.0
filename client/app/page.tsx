@@ -40,11 +40,14 @@ export default function LandingPage() {
       {/* Navigation */}
       <header className="relative z-10 flex items-center justify-between px-6 sm:px-10 py-5 border-b border-zinc-200/80 dark:border-zinc-800/50 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs">
+          <div className="w-7 h-7 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs shadow-xs">
             <Command className="w-3.5 h-3.5" />
           </div>
-          <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
             DocBridge
+            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+              2.0
+            </span>
           </span>
         </div>
 
@@ -74,7 +77,15 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="relative z-10 flex-1 flex flex-col items-center px-4 sm:px-6 pt-20 pb-24 max-w-4xl mx-auto w-full text-center">
+      <main className="relative z-10 flex-1 flex flex-col items-center px-4 sm:px-6 pt-16 pb-24 max-w-4xl mx-auto w-full text-center">
+        {/* Release Announcement Pill */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-zinc-200/90 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 text-[11px] font-mono text-zinc-600 dark:text-zinc-400 mb-6 shadow-2xs backdrop-blur-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-semibold text-zinc-900 dark:text-zinc-200">DocBridge 2.0</span>
+          <span className="text-zinc-300 dark:text-zinc-700">•</span>
+          <span>Hybrid Dense + Sparse RAG</span>
+        </div>
+
         <h1 className="text-3xl sm:text-5xl md:text-6xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100 mb-5 leading-[1.12]">
           Intelligent document analysis, <br />
           <span className="text-zinc-500 dark:text-zinc-400 font-serif italic">
@@ -89,10 +100,10 @@ export default function LandingPage() {
         <div className="mb-16">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 text-xs sm:text-sm font-medium transition-all shadow-xs"
+            className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-950 text-xs sm:text-sm font-medium transition-all shadow-xs active:scale-[0.98]"
           >
             <span>Open Workspace</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
         </div>
 
@@ -109,7 +120,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Indexed</span>
+              <span>DocBridge 2.0 • Indexed</span>
             </div>
           </div>
 
@@ -379,7 +390,7 @@ export default function LandingPage() {
 
       {/* Clean Minimalist Footer */}
       <footer className="border-t border-zinc-200/80 dark:border-zinc-800/60 py-6 px-6 max-w-6xl mx-auto w-full text-center text-xs text-zinc-400 font-mono">
-        DocBridge • Document Intelligence
+        DocBridge 2.0 • Grounded Document Intelligence
       </footer>
     </div>
   );

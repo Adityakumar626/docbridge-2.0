@@ -254,54 +254,80 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({ activeDoc }) => {
       <header className="h-12 border-b border-zinc-100 dark:border-zinc-800/60 px-6 flex items-center justify-between shrink-0 bg-transparent">
         <div className="flex items-center gap-2">
           {activeDoc ? (
-            <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
+            <div className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-medium truncate max-w-[240px] sm:max-w-md">
+              <span className="font-medium truncate max-w-[200px] sm:max-w-md">
                 {activeDoc.filename}
               </span>
-              <span className="text-zinc-400 text-[11px] font-mono">• Active</span>
+              <span className="text-zinc-400 text-[11px] font-mono hidden sm:inline">• Active</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              <FileText className="w-3.5 h-3.5" />
-              <span>All Indexed Documents</span>
+              <FileText className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">DocBridge 2.0</span>
+              <span className="text-zinc-400">• All Indexed Documents</span>
             </div>
           )}
         </div>
 
-        {messages.length > 0 && (
-          <button
-            onClick={() => {
-              setMessages([]);
-              setActiveSnippet(null);
-            }}
-            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset chat</span>
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {messages.length > 0 && (
+            <button
+              onClick={() => {
+                setMessages([]);
+                setActiveSnippet(null);
+              }}
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
         <div className="max-w-2xl mx-auto space-y-8">
-          {/* Calm, Clean Empty State (No clutter, no preprompts) */}
+          {/* Calm, Clean Empty State */}
           {messages.length === 0 && (
-            <div className="h-72 flex flex-col items-center justify-center text-center px-4 select-none">
-              <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 mb-3.5">
+            <div className="h-80 flex flex-col items-center justify-center text-center px-4 select-none">
+              <div className="w-11 h-11 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300 mb-3.5 shadow-2xs">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10.5px] font-mono text-zinc-600 dark:text-zinc-400 mb-2.5">
+                <span>DocBridge 2.0 Workspace</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1.5">
                 {activeDoc
-                  ? `Ready to answer questions about ${activeDoc.filename}`
-                  : "Ask questions about your documents"}
+                  ? `Ready to query ${activeDoc.filename}`
+                  : "Grounded Document Intelligence"}
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm leading-relaxed">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md leading-relaxed mb-6 font-normal">
                 {activeDoc
-                  ? "Type your question below to retrieve answers backed by verified page citations."
-                  : "Upload a PDF in the sidebar or ask questions across existing documents in your workspace."}
+                  ? "Ask targeted questions below to retrieve answers backed by hybrid dense-sparse retrieval and verified page citations."
+                  : "Upload a PDF in the sidebar to start asking questions with page-level citations and zero hallucinations."}
               </p>
+
+              {/* Quick suggestion chips (only when activeDoc is present) */}
+              {activeDoc && (
+                <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
+                  {[
+                    "Summarize key findings & takeaways",
+                    "What are the main risks or obligations?",
+                    "Extract critical metrics and numbers",
+                  ].map((suggestion, sIdx) => (
+                    <button
+                      key={sIdx}
+                      type="button"
+                      onClick={() => setInput(suggestion)}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -420,35 +446,42 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({ activeDoc }) => {
 
       {/* Input Footer Bar */}
       <div className="p-4 sm:p-6 bg-transparent shrink-0">
-        <div className="max-w-2xl mx-auto flex items-end border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/60 px-4 py-2.5 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 transition-colors shadow-xs">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
+        <div className="max-w-2xl mx-auto flex flex-col gap-1.5">
+          <div className="flex items-end border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/60 px-4 py-2.5 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400/20 transition-all shadow-xs">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder={
+                activeDoc
+                  ? `Ask about ${activeDoc.filename}...`
+                  : "Ask a question about your documents..."
               }
-            }}
-            placeholder={
-              activeDoc
-                ? `Ask about ${activeDoc.filename}...`
-                : "Ask a question about the document..."
-            }
-            className="w-full bg-transparent resize-none text-[13.5px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none leading-relaxed py-1"
-            disabled={loading}
-          />
+              className="w-full bg-transparent resize-none text-[13.5px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none leading-relaxed py-1"
+              disabled={loading}
+            />
 
-          <button
-            onClick={handleSendMessage}
-            disabled={!input.trim() || loading}
-            className="p-1.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 disabled:opacity-20 hover:opacity-90 transition-all ml-2 shrink-0 mb-0.5"
-            title="Send question"
-          >
-            <ArrowUp className="w-4 h-4" />
-          </button>
+            <button
+              onClick={handleSendMessage}
+              disabled={!input.trim() || loading}
+              className="p-1.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 disabled:opacity-20 hover:opacity-90 active:scale-95 transition-all ml-2 shrink-0 mb-0.5 cursor-pointer disabled:cursor-not-allowed"
+              title="Send question"
+            >
+              <ArrowUp className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between px-2 text-[10.5px] text-zinc-400 font-mono">
+            <span>DocBridge 2.0 • Hybrid RAG</span>
+            <span className="hidden sm:inline">↵ Send • Shift + ↵ New line</span>
+          </div>
         </div>
       </div>
     </div>

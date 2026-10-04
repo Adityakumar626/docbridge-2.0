@@ -5,8 +5,9 @@ import { SmoothCursor } from "@/components/ui/smooth-cursor";
 import { ThemeProvider } from "./components/theme-provider";
 
 export const metadata: Metadata = {
-  title: "DocBridge",
-  description: "Intelligent document analysis",
+  title: "DocBridge 2.0 - Intelligent Document Analysis",
+  description:
+    "DocBridge 2.0 • Grounded document intelligence with hybrid dense-sparse RAG, cross-encoder reranking, and verified page-level citations.",
 };
 
 export default function RootLayout({

@@ -30,11 +30,14 @@ export default function Dashboard() {
       {/* Mobile Top Header */}
       <header className="md:hidden relative z-40 flex items-center justify-between px-4 h-14 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300">
+          <div className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs shadow-xs">
             <Command className="w-3.5 h-3.5" />
           </div>
-          <span className="text-sm font-semibold tracking-tight font-sans">
+          <span className="text-sm font-semibold tracking-tight font-sans flex items-center gap-1.5">
             DocBridge
+            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+              2.0
+            </span>
           </span>
         </div>
         
@@ -73,7 +76,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to home</span>
+              <span>DocBridge 2.0</span>
             </Link>
 
             <div className="flex items-center gap-3">
@@ -115,9 +118,14 @@ export default function Dashboard() {
 
           {/* Retrieval Engine Features */}
           <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/60 bg-zinc-50/60 dark:bg-zinc-900/30 p-3.5 space-y-2.5 transition-colors">
-            <div className="flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              <Sparkles className="w-3.5 h-3.5 text-zinc-500" />
-              <span>Grounded Intelligence</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                <Sparkles className="w-3.5 h-3.5 text-zinc-500" />
+                <span>DocBridge 2.0 Engine</span>
+              </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
+                Active
+              </span>
             </div>
 
             <div className="space-y-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
@@ -127,7 +135,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center justify-between">
                 <span>Reranker</span>
-                <span className="font-mono text-zinc-700 dark:text-zinc-300">Cross-Encoder</span>
+                <span className="font-mono text-zinc-700 dark:text-zinc-300">Cross-Encoder (CRAG)</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Citation Verification</span>
@@ -139,7 +147,7 @@ export default function Dashboard() {
 
         {/* Sidebar Footer */}
         <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/60 text-[11px] text-zinc-400 dark:text-zinc-500 flex items-center justify-between transition-colors">
-          <span>DocBridge Intelligence</span>
+          <span>DocBridge 2.0 • Hybrid Engine</span>
           <span className="font-mono text-[10px]">v2.0</span>
         </div>
       </aside>
