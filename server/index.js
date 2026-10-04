@@ -3,6 +3,7 @@ import "dotenv/config";
 import cors from "cors";
 import multer from "multer";
 import crypto from "crypto";
+import fs from "fs";
 import { Queue } from "bullmq";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { GoogleGenAI } from "@google/genai";
@@ -10,12 +11,23 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { generateSparseVector } from "./lib/bm25.js";
 import { rerankCandidates } from "./lib/reranker.js";
 
+const REDIS_HOST = process.env.REDIS_HOST || "localhost";
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
+const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
+const PORT = process.env.PORT || 8000;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
+
+// Ensure uploads directory exists
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads", { recursive: true });
+}
+
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 
 const queue = new Queue("file-upload-queue", {
   connection: {
-    host: "localhost",
-    port: "6379",
+    host: REDIS_HOST,
+    port: REDIS_PORT,
   },
 });
 
@@ -34,17 +46,16 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 const app = express();
-const port = 8000;
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: CORS_ORIGIN,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
 app.get("/", (req, res) => {
-  return res.json({ status: "all good, working!" });
+  return res.json({ status: "DocBridge 2.0 API is healthy" });
 });
 
 app.get("/chat", async (req, res) => {
@@ -61,7 +72,7 @@ app.get("/chat", async (req, res) => {
   });
 
   const qdrantClient = new QdrantClient({
-    url: "http://localhost:6333",
+    url: QDRANT_URL,
   });
 
   // Check Collection Status
@@ -208,6 +219,6 @@ app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
   return res.json({ message: "uploaded", docId, filename: req.file.originalname, });
 });
 
-app.listen(port, () => {
-  console.log(`Server starting on ${port}`);
+app.listen(PORT, () => {
+  console.log(`Server starting on ${PORT}`);
 });

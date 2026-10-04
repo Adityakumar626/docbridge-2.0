@@ -8,6 +8,10 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 
 dotenv.config();
 
+const REDIS_HOST = process.env.REDIS_HOST || "localhost";
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
+const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
+
 const worker = new Worker(
   "file-upload-queue",
   async (job) => {
@@ -68,7 +72,7 @@ const worker = new Worker(
 
       // 4. Save to Qdrant
       const qdrantClient = new QdrantClient({
-        url: "http://localhost:6333",
+        url: QDRANT_URL,
       });
 
       // Ensure collection exists with both Dense + Sparse vector indexes
@@ -109,8 +113,8 @@ const worker = new Worker(
   {
     concurrency: 5,
     connection: {
-      host: "localhost",
-      port: 6379,
+      host: REDIS_HOST,
+      port: REDIS_PORT,
     },
   },
 );

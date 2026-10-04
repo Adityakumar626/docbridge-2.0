@@ -47,7 +47,8 @@ export const FileUploadComponent: React.FC<FileUploadProps> = ({
     formData.append("pdf", file);
 
     try {
-      const res = await fetch("http://localhost:8000/upload/pdf", {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiBase}/upload/pdf`, {
         method: "POST",
         body: formData,
       });

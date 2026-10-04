@@ -100,7 +100,8 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({ activeDoc }) => {
         params.append("docId", activeDoc.docId);
       }
 
-      const res = await fetch(`http://localhost:8000/chat?${params.toString()}`);
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiBase}/chat?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();

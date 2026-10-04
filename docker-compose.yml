@@ -1,10 +1,119 @@
 services:
-  valkey:
-    image: valkey/valkey
+  # 1. Valkey/Redis - In-memory queue broker for BullMQ
+  redis:
+    image: valkey/valkey:8-alpine
+    container_name: docbridge-redis
     ports:
-      - 6379:6379
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - docbridge-network
 
-  qdrant : 
-    image : qdrant/qdrant
-    ports : 
-        - 6333:6333
+  # 2. Qdrant - Dual Dense + Sparse BM25 Vector Database
+  qdrant:
+    image: qdrant/qdrant:v1.13.0
+    container_name: docbridge-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - docbridge-network
+
+  # 3. Express API - Single Model (gemini-3.7-flash) Chat & Upload Handlers
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: docbridge-api
+    command: ["node", "index.js"]
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_URL=http://qdrant:6333
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - shared_uploads:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - docbridge-network
+
+  # 4. Background Worker - PDF parser, chunker & hybrid embeddings generator
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: docbridge-worker
+    command: ["node", "worker.js"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_URL=http://qdrant:6333
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - shared_uploads:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - docbridge-network
+
+  # 5. Next.js Client - DocBridge 2.0 Modern Interface
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    container_name: docbridge-client
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - docbridge-network
+
+volumes:
+  redis_data:
+    name: docbridge-redis-data
+  qdrant_data:
+    name: docbridge-qdrant-data
+  shared_uploads:
+    name: docbridge-shared-uploads
+
+networks:
+  docbridge-network:
+    name: docbridge-network
+    driver: bridge
