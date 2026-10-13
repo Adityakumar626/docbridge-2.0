@@ -3,9 +3,14 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import { generateSparseVector } from "./lib/bm25.js"
 import { QdrantClient } from "@qdrant/js-client-rest";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Load root .env first, then local fallback
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config();
 
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";

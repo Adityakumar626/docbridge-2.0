@@ -1,5 +1,7 @@
 import express from "express";
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import multer from "multer";
 import crypto from "crypto";
@@ -16,6 +18,11 @@ const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const PORT = process.env.PORT || 8000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Load root .env first, then local fallback
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config();
 
 // Ensure uploads directory exists
 if (!fs.existsSync("uploads")) {
