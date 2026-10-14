@@ -49,6 +49,10 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - CORS_ORIGIN=http://localhost:3000
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
     volumes:
       - shared_uploads:/app/uploads
     depends_on:
@@ -72,6 +76,10 @@ services:
       - REDIS_PORT=6379
       - QDRANT_URL=http://qdrant:6333
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
     volumes:
       - shared_uploads:/app/uploads
     depends_on:

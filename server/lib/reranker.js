@@ -1,3 +1,5 @@
+import { traceable } from "langsmith/traceable";
+
 // jsDocs
 /** 
 * @param {import("@google/genai").GoogleGenAI} client - The GoogleGenAI client
@@ -7,7 +9,8 @@
 * @return {Promise<{goldenDocs : Array<any>,hasSufficientContext : boolean}>}
 */
 
-export async function rerankCandidates(client, query, candidates, topK = 3) {
+export const rerankCandidates = traceable(
+  async function rerankCandidates(client, query, candidates, topK = 3) {
     if (!candidates || candidates.length === 0) {
         return { goldenDocs: [], hasSufficientContext: false }
     }
@@ -85,6 +88,6 @@ You MUST respond strictly in valid JSON matching this schema:
             hasSufficientContext: true,
         };
     }
-
-
-}
+  },
+  { name: "Re-ranker & Context Evaluator", run_type: "chain" }
+);

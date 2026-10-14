@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { generateSparseVector } from "./lib/bm25.js"
 import { QdrantClient } from "@qdrant/js-client-rest";
+import { traceable } from "langsmith/traceable";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load root .env first, then local fallback
@@ -17,12 +18,10 @@ const REDIS_HOST = process.env.REDIS_HOST || "localhost";
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 
-const worker = new Worker(
-  "file-upload-queue",
-  async (job) => {
-    try {
-      const data = JSON.parse(job.data);
-      console.log(`Processing PDF path: ${data.path}`);
+const processPdfJob = traceable(
+  async (data) => {
+    // Wrapping up the BULLMQ job for langsmith tracing
+    console.log(`Processing PDF path: ${data.path}`);
 
       // 1. Load the PDF data
       const loader = new PDFLoader(data.path);
@@ -109,7 +108,22 @@ const worker = new Worker(
       });
 
       console.log(`✅ Ingested ${points.length} hybrid chunks successfully!`);
+      return {
+        status: "success",
+        filename: data.filename,
+        docId: data.docId,
+        chunkCount: points.length,
+      };
+  },
+  { name: "BullMQ PDF Ingestion Pipeline", run_type: "chain" }
+);
 
+const worker = new Worker(
+  "file-upload-queue",
+  async (job) => {
+    try {
+      const data = JSON.parse(job.data);
+      return await processPdfJob(data);
     } catch (error) {
       console.error("❌ Error processing job in worker:", error);
       throw error; // Ensures BullMQ knows the job failed
