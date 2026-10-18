@@ -1,0 +1,116 @@
+name: DocBridge RAG Quality Gate (DeepEval)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  evaluate-rag:
+    name: Evaluate RAG Faithfulness & Relevancy
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+      qdrant:
+        image: qdrant/qdrant:v1.19.0
+        ports:
+          - 6333:6333
+
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      QDRANT_URL: http://localhost:6333
+      PORT: 8000
+      DOCBRIDGE_API_URL: http://localhost:8000
+      DEEPEVAL_MODEL: gemini-3.5-flash-lite
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Setup Node.js environment
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: server
+        run: npm ci
+
+      # 2. Launch Backend API and Worker in Background
+      - name: Start DocBridge API & Background Worker
+        working-directory: server
+        run: |
+          mkdir -p uploads
+          node index.js > api.log 2>&1 &
+          node worker.js > worker.log 2>&1 &
+
+      # 3. Wait for Backend API Health
+      - name: Wait for API to be Healthy
+        run: |
+          echo "Waiting for DocBridge API to become healthy..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/ > /dev/null; then
+              echo "✅ DocBridge API is up and healthy!"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ API failed to start. Printing logs:"
+          cat server/api.log
+          exit 1
+
+      # 4. Ingest Benchmark Document
+      - name: Ingest Benchmark PDF into Qdrant
+        run: |
+          echo "Uploading benchmark document..."
+          UPLOAD_RES=$(curl -s -X POST -F "pdf=@server/uploads/Basics_of_GST.pdf" http://localhost:8000/upload/pdf)
+          echo "Upload response: $UPLOAD_RES"
+          
+          # Allow worker sufficient time to process chunks and generate hybrid embeddings
+          echo "Waiting for background worker to index chunks in Qdrant..."
+          sleep 20
+
+      # 5. Setup Python & uv
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # 6. Run DeepEval RAG Quality Gate
+      - name: Run DeepEval Automated RAG Evaluation
+        working-directory: evals
+        run: |
+          uv run deepeval set-gemini --model="gemini-3.5-flash-lite"
+          uv run deepeval test run test_docbridge.py
+
+      # 7. Print Server Logs on Failure
+      - name: Debug Server Logs on Failure
+        if: failure()
+        run: |
+          echo "=== API Logs ==="
+          cat server/api.log || true
+          echo "=== Worker Logs ==="
+          cat server/worker.log || true
