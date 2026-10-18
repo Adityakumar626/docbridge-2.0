@@ -54,9 +54,15 @@ const processPdfJob = traceable(
         apiKey: process.env.GOOGLE_API_KEY,
       });
 
-      // Compute Dense Embeddings in Batches:
-      const textToEmbed = enrichedChunks.map((c) => c.pageContent); // extract only page content from the chunks
-      const denseEmbeddings = await embeddings.embedDocuments(textToEmbed); // covert into dense vectors
+      // Compute Dense Embeddings in Batches of 5 (avoids Gemini batch payload character limits):
+      const textToEmbed = enrichedChunks.map((c) => c.pageContent);
+      const BATCH_SIZE = 5;
+      const denseEmbeddings = [];
+      for (let i = 0; i < textToEmbed.length; i += BATCH_SIZE) {
+        const batch = textToEmbed.slice(i, i + BATCH_SIZE);
+        const batchResults = await embeddings.embedDocuments(batch);
+        denseEmbeddings.push(...batchResults);
+      }
 
       // Compute Sparse Embeddings with BM25:
       const sparseEmbeddings = textToEmbed.map((text) => generateSparseVector(text));

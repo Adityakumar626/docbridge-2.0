@@ -13,7 +13,7 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from deepeval.metrics import FaithfulnessMetric, AnswerRelevancyMetric, GEval
 
 DOCBRIDGE_API_URL = os.getenv("DOCBRIDGE_API_URL", "http://localhost:8000")
-EVAL_MODEL = os.getenv("DEEPEVAL_MODEL", "gemini-1.5-flash")
+EVAL_MODEL = os.getenv("DEEPEVAL_MODEL", "gemini-3.5-flash-lite")
 
 # 1. Custom G-Eval Metric: Validates inline citation fidelity and formatting
 citation_metric = GEval(
@@ -43,7 +43,7 @@ def query_docbridge(message: str, doc_id: str = None) -> dict:
 
 # Test queries to benchmark retrieval accuracy and hallucination resistance
 SAMPLE_TEST_QUERIES = [
-    ("What are the key findings or summary of this document?", None),
+    ("What is GST and what are its main features?", None),
 ]
 
 @pytest.mark.parametrize("query, doc_id", SAMPLE_TEST_QUERIES)

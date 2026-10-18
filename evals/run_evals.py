@@ -19,7 +19,7 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from deepeval.metrics import FaithfulnessMetric, AnswerRelevancyMetric, GEval
 
 DOCBRIDGE_API_URL = os.getenv("DOCBRIDGE_API_URL", "http://localhost:8000")
-EVAL_MODEL = os.getenv("DEEPEVAL_MODEL", "gemini-1.5-flash")
+EVAL_MODEL = os.getenv("DEEPEVAL_MODEL", "gemini-3.5-flash-lite")
 
 def evaluate_query(query: str, doc_id: str = None):
     print(f"\n" + "="*60)
@@ -74,6 +74,8 @@ def evaluate_query(query: str, doc_id: str = None):
         ("Citation Adherence", citation),
     ]
 
+    import time
+
     print("\n📊 Evaluation Results:")
     print("-" * 60)
     for name, metric in metrics:
@@ -85,10 +87,11 @@ def evaluate_query(query: str, doc_id: str = None):
             print(f"{passed} | {name}: {score:.2f} / 1.00")
             if reason and reason != "N/A":
                 print(f"       Reason: {reason}")
+            time.sleep(2)  # Pause to respect Gemini Free Tier 15 RPM
         except Exception as err:
             print(f"⚠️ Error evaluating {name}: {err}")
     print("-" * 60)
 
 if __name__ == "__main__":
-    default_query = sys.argv[1] if len(sys.argv) > 1 else "What is the summary of this document?"
+    default_query = sys.argv[1] if len(sys.argv) > 1 else "What is GST and what are its main features?"
     evaluate_query(default_query)
