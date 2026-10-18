@@ -30,6 +30,7 @@ jobs:
 
     env:
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       QDRANT_URL: http://localhost:6333
@@ -41,7 +42,28 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 1. Setup Node.js environment
+      # 1. Verify Secret Configuration
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.GOOGLE_API_KEY }}" ]; then
+            echo "::error::GOOGLE_API_KEY secret is missing! Please add it to GitHub Repo -> Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+          echo "✅ GOOGLE_API_KEY is configured."
+
+      # 2. Wait for Database Services
+      - name: Wait for Redis & Qdrant Services
+        run: |
+          echo "Waiting for Qdrant (port 6333)..."
+          for i in {1..30}; do
+            if curl -s http://localhost:6333/healthz | grep -i "healthz" > /dev/null || curl -s http://localhost:6333/ > /dev/null; then
+              echo "✅ Qdrant is ready!"
+              break
+            fi
+            sleep 1
+          done
+
+      # 3. Setup Node.js environment
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -53,7 +75,7 @@ jobs:
         working-directory: server
         run: npm ci
 
-      # 2. Launch Backend API and Worker in Background
+      # 4. Launch Backend API and Worker in Background
       - name: Start DocBridge API & Background Worker
         working-directory: server
         run: |
@@ -61,12 +83,12 @@ jobs:
           node index.js > api.log 2>&1 &
           node worker.js > worker.log 2>&1 &
 
-      # 3. Wait for Backend API Health
+      # 5. Wait for Backend API Health
       - name: Wait for API to be Healthy
         run: |
-          echo "Waiting for DocBridge API to become healthy..."
+          echo "Waiting for DocBridge API (http://localhost:8000/)..."
           for i in {1..30}; do
-            if curl -s http://localhost:8000/ > /dev/null; then
+            if curl -s http://localhost:8000/ | grep -i "healthy" > /dev/null; then
               echo "✅ DocBridge API is up and healthy!"
               exit 0
             fi
@@ -76,18 +98,28 @@ jobs:
           cat server/api.log
           exit 1
 
-      # 4. Ingest Benchmark Document
+      # 6. Ingest Benchmark Document & Wait for Indexing
       - name: Ingest Benchmark PDF into Qdrant
         run: |
           echo "Uploading benchmark document..."
           UPLOAD_RES=$(curl -s -X POST -F "pdf=@server/uploads/Basics_of_GST.pdf" http://localhost:8000/upload/pdf)
           echo "Upload response: $UPLOAD_RES"
           
-          # Allow worker sufficient time to process chunks and generate hybrid embeddings
-          echo "Waiting for background worker to index chunks in Qdrant..."
-          sleep 20
+          echo "Waiting for worker to complete embedding and index points into Qdrant..."
+          for i in {1..40}; do
+            POINTS=$(curl -s http://localhost:6333/collections/pdf-docs | grep -o '"points_count":[0-9]*' | cut -d: -f2 || echo "0")
+            if [ -n "$POINTS" ] && [ "$POINTS" -gt "0" ] 2>/dev/null; then
+              echo "✅ Qdrant indexed $POINTS points successfully!"
+              exit 0
+            fi
+            echo "Waiting for chunks to index (attempt $i/40)..."
+            sleep 2
+          done
+          echo "❌ Worker failed to ingest document within timeout. Printing worker logs:"
+          cat server/worker.log
+          exit 1
 
-      # 5. Setup Python & uv
+      # 7. Setup Python & uv
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -99,14 +131,14 @@ jobs:
         with:
           python-version: "3.13"
 
-      # 6. Run DeepEval RAG Quality Gate
+      # 8. Run DeepEval RAG Quality Gate
       - name: Run DeepEval Automated RAG Evaluation
         working-directory: evals
         run: |
           uv run deepeval set-gemini --model="gemini-3.5-flash-lite"
           uv run deepeval test run test_docbridge.py
 
-      # 7. Print Server Logs on Failure
+      # 9. Debug Server Logs on Failure
       - name: Debug Server Logs on Failure
         if: failure()
         run: |
