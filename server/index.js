@@ -104,9 +104,10 @@ const generateLlmAnswer = traceable(
     let chatModel;
     try {
       chatModel = new ChatGoogleGenerativeAI({
-        model: "gemini-3.8-flash",
+        model: "gemini-3.5-flash-lite",
         apiKey: process.env.GOOGLE_API_KEY,
         temperature: 0.2,
+        maxRetries: 1,
       });
       const response = await chatModel.invoke([
         ["system", systemPrompt],
@@ -118,9 +119,10 @@ const generateLlmAnswer = traceable(
     } catch (primaryErr) {
       console.warn("Primary model error, attempting fallback:", primaryErr.message);
       chatModel = new ChatGoogleGenerativeAI({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.1-flash-lite",
         apiKey: process.env.GOOGLE_API_KEY,
         temperature: 0.2,
+        maxRetries: 1,
       });
       const fallbackResponse = await chatModel.invoke([
         ["system", systemPrompt],

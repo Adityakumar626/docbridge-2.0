@@ -43,15 +43,29 @@ You MUST respond strictly in valid JSON matching this schema:
 `
 
     try {
-        const response = await client.models.generateContent({
-            model: "gemini-3.7-flash",
-            config: {
-                systemInstruction: "You are a strict, objective information retrieval evaluator. Output ONLY valid JSON.",
-                responseMimeType: "application/json",
-                temperature: 0.1, // low temp for non mock results
-            },
-            contents: RERANK_PROMPT,
-        })
+        let response;
+        try {
+            response = await client.models.generateContent({
+                model: "gemini-3.5-flash-lite",
+                config: {
+                    systemInstruction: "You are a strict, objective information retrieval evaluator. Output ONLY valid JSON.",
+                    responseMimeType: "application/json",
+                    temperature: 0.1, // low temp for non mock results
+                },
+                contents: RERANK_PROMPT,
+            });
+        } catch (mErr) {
+            console.warn("Primary reranker model error, trying gemini-3.1-flash-lite:", mErr.message);
+            response = await client.models.generateContent({
+                model: "gemini-3.1-flash-lite",
+                config: {
+                    systemInstruction: "You are a strict, objective information retrieval evaluator. Output ONLY valid JSON.",
+                    responseMimeType: "application/json",
+                    temperature: 0.1,
+                },
+                contents: RERANK_PROMPT,
+            });
+        }
 
         let rawText = response.text || "";
         rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
